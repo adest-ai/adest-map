@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>いつもそばに、誰とも違う — Adest 実装マッピング</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0e1019; --panel:#1a1e2d; --panel2:#222739; --line:#2c3149; --line2:#3d4463;
+  --paper:#ece9e2; --dim:#9d9a8d;
+  --soul:#9db4cc; --pers:#d98ba1; --exp:#d4aa6a; --tho:#6cc5b5; --mem:#a98fd6; --base:#8f95a8;
+  --fixed:#4cc38a; --part:#d9b44c; --desg:#5aa7dd; --none:#7d7d88;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --body:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+  --disp:'Zen Old Mincho','Hiragino Mincho ProN','Yu Mincho',serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--ink);color:var(--paper);font-family:var(--body);overflow:hidden;
+  background-image:radial-gradient(ellipse 55% 70% at 62% 40%, #182038 0%, transparent 62%)}
+button{font-family:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--paper);outline-offset:2px}
+
+/* ---------- stage grid ---------- */
+.stage{height:100vh;display:grid;grid-template-columns:clamp(400px,30vw,540px) 1fr;grid-template-rows:1fr auto}
+.side{grid-row:1/3;display:flex;flex-direction:column;justify-content:space-between;gap:2vh;padding:4vh 1.4vw 2.6vh 2.4vw;min-height:0;overflow:hidden}
+.slogan{writing-mode:vertical-rl;font-family:var(--disp);font-weight:900;color:var(--paper);align-self:flex-start;
+  font-size:clamp(24px,3.8vh,42px);letter-spacing:.24em;line-height:1.5;text-shadow:0 0 44px rgba(157,180,204,.18);
+  max-height:46vh;flex:0 1 auto}
+.slogan small{display:block;font-family:var(--mono);font-weight:400;font-size:clamp(8px,1vh,10px);letter-spacing:.3em;color:var(--dim);margin-left:1.2em}
+.infocard{border:1px solid var(--line2);border-radius:18px;background:linear-gradient(170deg,rgba(28,33,53,.7),rgba(20,24,38,.7));
+  padding:clamp(20px,3vh,30px) clamp(18px,1.7vw,28px);box-shadow:0 10px 34px rgba(0,0,0,.35), inset 0 1px 0 rgba(236,233,226,.05);flex:0 0 auto;overflow:hidden}
+.infocard .sub{font-size:clamp(13px,1.6vh,16px);color:var(--paper);line-height:2;letter-spacing:.03em;white-space:nowrap}
+.infocard .sub b{color:var(--paper)}
+.infocard .hint{margin-top:2vh;display:block;text-align:center;font-size:clamp(12px,1.45vh,14.5px);letter-spacing:.03em;color:var(--dim);
+  border:1px solid var(--line2);border-radius:12px;padding:1.2vh 1vw;line-height:1.6}
+.infocard .hint b{color:var(--paper)}
+.infocard .legend{margin-top:2vh;display:flex;flex-wrap:wrap;column-gap:1.6vw;row-gap:1.2vh;font-size:clamp(12px,1.45vh,14px);color:var(--dim);letter-spacing:.02em}
+.infocard .legend span{white-space:nowrap}
+.infocard .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}
+.infocard .stat{margin-top:2vh;padding-top:2vh;border-top:1px solid var(--line);display:flex;align-items:center;gap:1vw}
+.infocard .stat .n{font-family:var(--disp);font-weight:900;font-size:clamp(26px,3.8vh,38px);color:var(--paper);white-space:nowrap;flex:0 0 auto}
+.infocard .stat .l{font-size:clamp(11px,1.4vh,13.5px);color:var(--paper);line-height:1.7;white-space:nowrap}
+.infocard .stat .l b{color:var(--paper);font-weight:700}
+.legend .impl i{background:var(--fixed)} .legend .part i{background:var(--part)}
+.legend .desg i{background:var(--desg)} .legend .none i{background:var(--none)}
+
+/* ---------- radial ---------- */
+.radialwrap{position:relative;grid-column:2;grid-row:1;min-height:0}
+.radial{position:absolute;inset:0}
+.radial svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.rnode{position:absolute;z-index:2}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border-radius:50%;
+  background:radial-gradient(circle at 38% 30%, #232a44, #141826 70%);border:1px solid var(--line2);
+  box-shadow:0 0 0 10px rgba(61,68,99,.12), 0 18px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(236,233,226,.07)}
+.center .nm{font-family:var(--disp);font-weight:900;font-size:clamp(26px,4vh,40px);letter-spacing:.1em}
+.center .en{font-family:var(--mono);font-size:clamp(9px,1.2vh,12px);letter-spacing:.32em;color:var(--dim);margin-top:.6vh}
+.elbadge{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.elbadge .jp{font-family:var(--disp);font-weight:900;font-size:clamp(26px,4.2vh,42px);letter-spacing:.1em;color:var(--c);
+  text-shadow:0 0 28px color-mix(in srgb,var(--c) 60%,transparent)}
+.elbadge .en{font-family:var(--mono);font-size:clamp(8px,1.05vh,10.5px);letter-spacing:.26em;color:var(--dim);margin-top:.4vh}
+
+.fn{position:absolute;z-index:3;display:flex;align-items:center;gap:9px;white-space:nowrap;
+  background:rgba(26,30,45,.92);border:1px solid color-mix(in srgb,var(--c) 34%,transparent);border-radius:999px;
+  padding:1.05vh 1.1vw 1.05vh .9vw;color:var(--paper);
+  transition:border-color .18s, box-shadow .18s, transform .18s, background .18s}
+.fn:hover{border-color:var(--c);background:rgba(34,39,57,.97);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 45%,transparent), 0 6px 24px color-mix(in srgb,var(--c) 22%,transparent)}
+.fn .st{width:9px;height:9px;border-radius:50%;flex:0 0 9px;box-shadow:0 0 9px currentColor}
+.fn .nm{font-size:clamp(13.5px,1.85vh,17px);font-weight:700;letter-spacing:.01em}
+.fn .bc{font-family:var(--mono);font-size:clamp(10px,1.25vh,12px);color:var(--dim);letter-spacing:.05em;margin-left:2px}
+.st.impl{background:var(--fixed);color:var(--fixed)} .st.part{background:var(--part);color:var(--part)}
+.st.desg{background:var(--desg);color:var(--desg)} .st.none{background:var(--none);color:var(--none)}
+
+/* ---------- base band (foundation) ---------- */
+.baseband{grid-column:2;grid-row:2;padding:0 2.4vw 2.6vh;position:relative}
+.baseband .plate{border:1px solid var(--line2);border-radius:16px;background:linear-gradient(180deg,#1a1e2f,#151827);
+  box-shadow:0 -8px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(236,233,226,.05);
+  padding:1.4vh 1.4vw 1.5vh;display:flex;align-items:center;gap:1vw}
+.baseband .blabel{flex:0 0 auto;text-align:center;padding:0 1vw;border-right:1px solid var(--line)}
+.baseband .blabel .jp{font-family:var(--disp);font-weight:900;font-size:clamp(21px,3.1vh,30px);letter-spacing:.18em;color:var(--base)}
+.baseband .blabel .en{font-family:var(--mono);font-size:clamp(8px,1vh,10px);letter-spacing:.26em;color:var(--dim);margin-top:.2vh}
+.baseband .chips{flex:1;display:grid;grid-template-columns:repeat(8,1fr);gap:.6vw}
+.baseband .fnb{display:flex;flex-direction:column;justify-content:center;gap:.35vh;text-align:left;
+  background:rgba(26,30,45,.85);border:1px solid color-mix(in srgb,var(--base) 30%,transparent);border-radius:10px;
+  padding:.8vh .7vw;color:var(--paper);min-width:0;transition:border-color .18s, box-shadow .18s, background .18s}
+.baseband .fnb:hover{border-color:var(--base);background:rgba(34,39,57,.96);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--base) 42%,transparent), 0 6px 22px rgba(143,149,168,.18)}
+.fnb .nm{font-size:clamp(12px,1.6vh,15px);font-weight:700;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fnb .meta{display:flex;align-items:center;gap:7px}
+.fnb .st{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.fnb .bc{font-family:var(--mono);font-size:clamp(9.5px,1.15vh,11.5px);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.baseband .caption{position:absolute;top:-3.4vh;left:44%;transform:translateX(-50%);text-align:center;
+  font-size:clamp(11px,1.4vh,13.5px);color:var(--dim);letter-spacing:.1em;white-space:nowrap;
+  background:var(--ink);padding:.3vh 1.2vw;border-radius:999px}
+.baseband .caption b{color:var(--paper)}
+
+/* reveal */
+.reveal .rnode,.reveal .fnb,.reveal .plate{opacity:0;transform:translateY(8px);transition:opacity .6s ease, transform .6s ease}
+.reveal.on .rnode,.reveal.on .fnb,.reveal.on .plate{opacity:1;transform:none}
+svg path.animatable{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1s ease}
+.reveal.on svg path.animatable{stroke-dashoffset:0}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .reveal .rnode,.reveal .fnb,.reveal .plate{opacity:1;transform:none}
+  svg path.animatable{stroke-dashoffset:0}
+}
+@media (max-width:1000px){ body{overflow:auto} }
+
+/* ---------- drawer ---------- */
+.scrim{position:fixed;inset:0;background:rgba(8,10,17,.66);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(600px,100%);background:var(--panel);border-left:1px solid var(--line);
+  transform:translateX(102%);transition:transform .26s cubic-bezier(.22,.8,.35,1);z-index:50;display:flex;flex-direction:column}
+.drawer.on{transform:translateX(0)}
+.d-head{position:relative;padding:24px 28px 18px;border-bottom:1px solid var(--line)}
+.d-head::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c);opacity:.9}
+.d-head .grp{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--c)}
+.d-head h2{font-family:var(--disp);font-weight:900;font-size:25px;margin-top:6px;line-height:1.45}
+.d-head .path{font-family:var(--mono);font-size:11.5px;color:var(--tho);margin-top:8px;word-break:break-all}
+.d-head .stline{margin-top:10px;font-size:12px;color:var(--dim);display:flex;align-items:center;gap:8px}
+.d-head .stline .st{width:9px;height:9px;border-radius:50%}
+.d-close{position:absolute;top:16px;right:18px;background:transparent;border:1px solid var(--line2);color:var(--paper);border-radius:10px;width:36px;height:36px;font-size:16px;transition:background .15s}
+.d-close:hover{background:var(--panel2)}
+.d-body{overflow-y:auto;padding:24px 28px 40px;flex:1;line-height:1.6;font-size:15px}
+.d-sec{margin-bottom:26px}
+.d-sec h3{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--dim);margin-bottom:10px}
+.d-sec .role{font-size:14px;line-height:1.95}
+.d-sec .role em{font-style:normal;color:var(--c);font-weight:700}
+.feat{border:1px solid color-mix(in srgb,var(--fixed) 55%,transparent);border-radius:14px;padding:16px 18px;background:rgba(76,195,138,.05)}
+#featSlot{transition:height .32s cubic-bezier(.4,0,.2,1);overflow:hidden}
+.feat.landing{animation:featLand .3s cubic-bezier(.34,1.4,.5,1)}
+@keyframes featLand{0%{transform:scale(.9);opacity:.3}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+/* flying clone used for the promote animation — geometry matches its landing target exactly */
+.flyer{position:fixed;z-index:60;pointer-events:none;overflow:hidden;will-change:transform,opacity;line-height:1.6}
+.flyer.up{border:none;border-radius:14px;padding:0;background:var(--panel);box-shadow:none}
+.flyer.down{border:1px solid var(--line);border-radius:11px;padding:12px 15px;background:var(--panel2)}
+.flyer .id{font-family:var(--mono);font-size:10.5px;color:var(--fixed);letter-spacing:.06em}
+.flyer.down .id{color:var(--dim);flex:0 0 auto}
+.flyer.down .top2{display:flex;gap:10px;align-items:baseline}
+.flyer.down .sym{font-size:12.8px;font-weight:600;line-height:1.6}
+.flyer.down .fix{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.7}
+.flyer.down .fix b{color:var(--fixed);font-weight:700}
+.flyer.up .id{font-size:11px;letter-spacing:.1em}
+.feat.ghost{opacity:0}
+.bitem.ghost{opacity:0}
+@media (prefers-reduced-motion:reduce){.feat.landing{animation:none}}
+.feat .id{font-family:var(--mono);font-size:11px;color:var(--fixed);letter-spacing:.1em}
+.feat .t{font-weight:700;font-size:15px;margin-top:3px;font-family:var(--disp)}
+.feat .row{display:flex;gap:12px;font-size:13px;margin-top:9px;line-height:1.8}
+.feat .k{flex:0 0 3.1em;font-weight:700;font-size:11.5px;padding-top:2px}
+.feat .row.sym .k{color:var(--pers)} .feat .row.cause .k{color:var(--exp)} .feat .row.fix .k{color:var(--fixed)}
+.blist{display:flex;flex-direction:column;gap:9px}
+.bitem{border:1px solid var(--line);border-radius:11px;padding:12px 15px;background:var(--panel2);cursor:pointer;
+  transition:border-color .16s, background .16s, transform .16s}
+.bitem:hover{border-color:var(--line2);background:#262c40;transform:translateX(2px)}
+.bitem.active{border-color:var(--fixed);background:rgba(76,195,138,.08);cursor:default;transform:none}
+.bitem.active .id{color:var(--fixed)}
+.bitem .top2{display:flex;gap:10px;align-items:baseline}
+.bitem .id{font-family:var(--mono);font-size:10.5px;color:var(--dim);flex:0 0 auto}
+.bitem .sym{font-size:12.8px;font-weight:600;line-height:1.6}
+.bitem .fix{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.7}
+.bitem .fix b{color:var(--fixed);font-weight:700}
+.blist-hint{font-size:11px;color:var(--dim);letter-spacing:.04em;margin:2px 0 8px}
+.none-note{font-size:12.5px;color:var(--dim);line-height:1.8}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="side">
+    <div class="slogan">いつもそばに、誰とも違う<small>ADEST — IMPLEMENTATION MAP</small></div>
+    <div class="infocard">
+      <p class="sub">AIを「プログラム」ではなく<br><b>「擬似的な人の分身」</b> として設計する。<br>哲学と実装と実戦記録の全対応図。</p>
+      <span class="hint"><b>機能をクリック</b><br>詳細＋対応バグを表示</span>
+      <div class="legend">
+        <span class="impl"><i></i>実装+配線済</span>
+        <span class="part"><i></i>部分/土台</span>
+        <span class="desg"><i></i>設計・実装残</span>
+        <span class="none"><i></i>未着手</span>
+      </div>
+      <div class="stat"><span class="n">95<span style="font-size:.55em;color:var(--dim)">+</span></span><span class="l"><b>観察→原因特定→修正→再検証</b><br>を繰り返した実戦記録</span></div>
+    </div>
+  </div>
+
+  <div class="radialwrap">
+    <div class="radial reveal" id="radial">
+      <svg id="rsvg"></svg>
+    </div>
+  </div>
+
+  <div class="baseband">
+    <span class="caption">5要素は、この「<b>基盤</b>」の上で動く — 人を乗せる身体</span>
+    <div class="plate reveal" id="basePlate">
+      <div class="blabel"><div class="jp">基盤</div><div class="en">BASE</div></div>
+      <div class="chips" id="baseChips"></div>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title">
+  <div class="d-head" id="dHead">
+    <button class="d-close" id="dClose" aria-label="閉じる">×</button>
+    <div class="grp" id="dGrp"></div>
+    <h2 id="d-title"></h2>
+    <div class="path" id="dPath"></div>
+    <div class="stline" id="dSt"></div>
+  </div>
+  <div class="d-body" id="dBody"></div>
+</aside>
+
+<script>
+"use strict";
+const GROUPS = {
+  soul:{jp:"魂",en:"SOUL",hex:"#9db4cc",c:"var(--soul)"},
+  pers:{jp:"性格",en:"PERSONALITY",hex:"#d98ba1",c:"var(--pers)"},
+  tho:{jp:"思考",en:"THOUGHT",hex:"#6cc5b5",c:"var(--tho)"},
+  exp:{jp:"経験",en:"EXPERIENCE",hex:"#d4aa6a",c:"var(--exp)"},
+  mem:{jp:"記憶",en:"MEMORY",hex:"#a98fd6",c:"var(--mem)"},
+  base:{jp:"基盤",en:"BASE",hex:"#8f95a8",c:"var(--base)"}
+};
+const ST = {impl:"実装+配線済 (実機確認残を含む)", part:"部分実装/土台", desg:"設計確定・コード実装残", none:"未着手"};
+const STSHORT = {impl:"実装済", part:"部分", desg:"設計済", none:"未着手"};
+
+const FEATURES = [
+{g:"soul",st:"impl",short:"公理系",name:"公理系（system_axioms）",path:"adest/runtime/system_axioms.py",
+ role:"分身の<em>行動原則そのもの</em>。「観測していないものを語らない」等を構造データで持ち、場面ごとに有効なものだけ適用。新原則の追加は衝突洗い出しと設計者承認が必須。",
+ feat:{id:"BUG-37",t:"起動直後の状況捏造",sym:"挨拶しただけで「こちらのゲームもどうぞよろしく」とゲーム前提の応答。",cause:"前回の会話の余韻が残り、実況中だと推測して欠けた文脈を想像で埋めた。",fix:"「観測欄に対象が出ていない限り前提にした応答は捏造扱いで禁止」を公理に追加。"},
+ bugs:[
+  {id:"BUG-26",sym:"画像認識が未実装なのに画面の中身を捏造。",fix:"<b>対処:</b> 「観測したものだけを語る」を断言形式の公理に固定。"},
+  {id:"BUG-30",sym:"ユーザーの質問文を「画面の文字」としてオウム返し。",fix:"<b>対処:</b> 役割分離を明文化し、オウム返し厳禁の節を追加。"},
+  {id:"BUG-79",sym:"文法エラー「見えるですね」が訂正後も反復。",fix:"<b>対処:</b> 良い例・悪い例を公理に明示。"},
+  {id:"BUG-91",sym:"挨拶に「青い惑星が見えるですね」と文脈無視の暴発。",fix:"<b>対処:</b> 公理の動的選定＋意図に関連する記憶だけ注入。"}
+ ]},
+{g:"soul",st:"impl",short:"Sterile Join 検疫",name:"Sterile Join（無菌結合・4段防御）",path:"adest/runtime/quarantine.py + dreaming.py",
+ role:"<em>信頼できる層と汚染され得る層の境界の検疫関門</em>。入力→出力→ソース追跡→鮮度と確信度のゲート、の4段。人でいう免疫。",
+ feat:{id:"BUG-92",t:"AIの幻聴がユーザー発話として記憶を汚染",sym:"無言なのに音声認識が幻聴「ご視聴ありがとうございました」を生成し、本人の発話として記録。",cause:"短い幻聴を弾く既存判定では1.4秒級の幻聴を防げなかった。",fix:"音声の入口に区間検出・ノイズ除去・話者確認の関門を追加する構造で解消する方針。"},
+ bugs:[
+  {id:"BUG-70",sym:"画像認識の結果を、ユーザーの意図に合わせて歪めて報告。",fix:"<b>対処:</b> 観察を独立経路で扱い解釈と混ぜない。"},
+  {id:"BUG-57",sym:"画面の断片「Gil」を人物名扱いで物語化。",fix:"<b>対処:</b> 生テキストが発話枠に流れる抜け道を閉鎖。"}
+ ]},
+{g:"soul",st:"impl",short:"汚染台帳",name:"汚染台帳（ContaminationLedger）",path:"adest/runtime/contamination_ledger.py",
+ role:"検疫で弾いたもの・改竄を<em>1行1件で記録する台帳</em>。何を信じなかったかも分身の一部。",feat:null,bugs:[]},
+{g:"soul",st:"desg",short:"検疫の第5段",name:"検疫の第5段（注入経路の統合）",path:"prompts.py: _compose_tier3_injection_block",
+ role:"記憶から応答への<em>最後の注入口</em>にも門番を置く設計。4段防御と応答の間の責任の空白を塞ぐ。",feat:null,bugs:[]},
+
+{g:"pers",st:"impl",short:"人格プリセット",name:"人格プリセット（personas + presets）",path:"adest/personas/*.json + presets.toml",
+ role:"口調・価値観・禁止事項をまとめた<em>人格の初期設定18種</em>。起動時のみ反映・実行中は読み取り専用＝学習が人格を書き換えない。",
+ feat:{id:"BUG-60",t:"役割の直書きが人格を歪める",sym:"「音声AI」を第三者として語る、自己認識のズレ。",cause:"人格ファイルに役割が直書きされ毎回注入されていた。役割の固定が状況判断を歪めた。",fix:"役割の直書きを全ファイルで空にし、役割はプリセット側で表現する設計に統一。"},
+ bugs:[
+  {id:"BUG-59",sym:"丁寧設定なのに「〜かしら」等の古風な語尾。",fix:"<b>対処:</b> 基本形と避ける語尾を具体例つきで明文化。"},
+  {id:"BUG-2",sym:"内部の思考プロセスをそのまま口に出す。",fix:"<b>対処:</b> 思考を出力しない指定で内心と発話を分離。"}
+ ]},
+{g:"pers",st:"part",short:"口調の四層防衛",name:"口調の四層防衛（PresetToneClamper）",path:"PresetToneClamper ほか（四層構造）",
+ role:"口調の逸脱を<em>4層で検出・却下</em>。学習しても人格の枠は破らせない。口調の直接書き換えは禁止。",
+ feat:{id:"BUG-73",t:"昔のタメ口が敬語設定を汚染し続ける",sym:"敬語に切り替えても以前のタメ口が混ざり続ける。",cause:"記憶層に旧い口調のまま保存され、そのまま残っていた。記憶が人格を上書きする逆流。",fix:"記憶は中身だけ持ち、口調は表示時に現在の人格で描画。記憶が人格を汚染しないを構造で保証。"},
+ bugs:[
+  {id:"BUG-81",sym:"敬語設定下でタメ口に流れ訂正発話が記憶に入る。",fix:"<b>整理:</b> 実装予定明記の未実装症状でバグではないと判断し削除。"},
+  {id:"BUG-89",sym:"「実装完了」の口調検証関数が実ファイルに不在。",fix:"<b>対処:</b> 別作業環境の未マージが真因。マージ・配線し機械チェック配備。"}
+ ]},
+{g:"pers",st:"impl",short:"心理学ベース性格",name:"心理学ベースの性格構成",path:"adest/runtime/persona_psychology.py",
+ role:"MBTI等の<em>心理学指標8種で性格の核を組む</em>。言語化なしで一貫した人格を設計できる。",feat:null,bugs:[]},
+{g:"pers",st:"desg",short:"話者別口調学習",name:"話者別の口調学習",path:"PersonalizedToneLearner（設計済）",
+ role:"複数人の場面で<em>人ごとに口調を学習して合わせる</em>設計。ただし性格の枠内のみ。芯は変わらない。",feat:null,bugs:[]},
+
+{g:"tho",st:"impl",short:"3視点並列推論",name:"3視点の並列推論（MultiReflect）",path:"adest/runtime/multi_reflect.py",
+ role:"一つの観測に<em>複数の視点で同時に考え最良を採択</em>。思考の多数決＋拒否ルール。",
+ feat:{id:"BUG-13",t:"考え終わるまで8秒黙る",sym:"3視点すべての完了を待って喋るため約8秒の沈黙。",cause:"全員の意見が出揃う→投票→発話の直列構造。会話としては遅すぎる。",fix:"最初の有効候補が出た瞬間に喋り、残りは打ち切る早期発話へ。8秒→約3秒。"},
+ bugs:[
+  {id:"BUG-6",sym:"全候補が形式違反で全滅。",fix:"<b>対処:</b> チャット形式に組み替えて解消。"},
+  {id:"BUG-12",sym:"「仰せになります」等の不自然な敬語。",fix:"<b>対処:</b> 思考方針の挿入位置をシステム側末尾へ。"},
+  {id:"BUG-35",sym:"応答が文の途中で切れて発話される。",fix:"<b>対処:</b> 文末記号で切り揃える処理を新設。"},
+  {id:"BUG-9",sym:"同じ言い回しの繰り返しが多い。",fix:"<b>対処:</b> 繰り返しペナルティを実測で再調整。"},
+  {id:"BUG-78",sym:"短い正しい応答が日本語判定で失格し応答不能。",fix:"<b>対処:</b> 文字数の帯域ごとの短文経路を追加。"},
+  {id:"BUG-10",sym:"3視点×推論で約1分の遅延。",fix:"<b>対処:</b> 視点ごとの出力上限を実測で調整。"}
+ ]},
+{g:"tho",st:"impl",short:"二段推論＋思考パッチ",name:"二段推論（ThinkingShadow）＋思考パッチ",path:"runtime/thinking_shadow.py + personas/thinking/*.toml",
+ role:"段1で<em>思考素材を整理</em>、段2で表現。考え方の癖は外部ファイルに構造データで持つ＝特定のAIに依存しない。",
+ feat:{id:"BUG-62",t:"観察を説明するだけで考えがない",sym:"「〜のようですね」と見たものをなぞるだけ。感想も判断もない。",cause:"観察→説明で止まり、思考の段が抜けていた。丸投げすると人間らしい部分が空洞に。",fix:"「返すのは見たものでなく考えたこと」「価値がなければ沈黙」を明示。観察→思考→表現/沈黙に統一。"},
+ bugs:[
+  {id:"BUG-63",sym:"同じ語尾が2文連続で単調に。",fix:"<b>対処:</b> 語尾に変化をつける誘導を追加。"},
+  {id:"BUG-64",sym:"接地が長文化しAIの注意が分散。",fix:"<b>対処:</b> 最重要の禁止4行を冒頭に凝縮。"},
+  {id:"BUG-61",sym:"直前の話題の慣性で同じ話を4回続ける。",fix:"<b>対処:</b> 発話由来と観察由来で履歴の扱いを分離。"}
+ ]},
+{g:"tho",st:"part",short:"PIA（前段整え層）",name:"前段で整える層（PIA）",path:"prompts.py / build_full_prompt",
+ role:"AIに渡す<em>前</em>に情報を取捨選択。確定度ラベルを付け、不足は「無い」と表現して<em>想像で埋める欲求を抑える</em>。AIは表現役に徹する。",
+ feat:{id:"BUG-76",t:"渡す情報が膨張して思考が全滅",sym:"文脈のあふれが5日連続で再発。注入が膨らみ容量超過で全応答が失敗。",cause:"「役立ちそうなものを全部渡す」方向に膨張し取捨選択が機能せず。",fix:"注入を優先度の階層別に自動で削る仕組みを実装。魂の中核は保護。全部渡すから選んで渡すへ。"},
+ bugs:[
+  {id:"BUG-77",sym:"起動時のウォームアップが容量超過でスキップ。",fix:"<b>対処:</b> 最小プロンプトで行う方式に戻した。"},
+  {id:"BUG-83",sym:"履歴の切り詰めで直前ターンの文脈が失われる懸念。",fix:"<b>対処:</b> 別経路で構築され影響なしと構造確認。"}
+ ]},
+{g:"tho",st:"part",short:"二脳合議",name:"二脳合議（Hemisphere Council）",path:"adest/runtime/hemisphere_council.py",
+ role:"<em>論理の脳と感情の脳が議論して話す・反論・黙るを決める</em>設計。現状は議論未機能で、完成設計は確定・実装残。",
+ feat:null,bugs:[{id:"BUG-72",sym:"「どうでしょうか?」と質問返しを連発。",fix:"<b>対処:</b> 連続発動を数えて抑制。"}]},
+{g:"tho",st:"impl",short:"メタ認知・較正",name:"メタ認知と確信度の較正",path:"metacognition.py / confidence_calibration.py",
+ role:"<em>自分の答えの自信度を自分で追跡</em>。確信の低い応答は落とし、低確信の話題は優先的に学ぶ。",feat:null,bugs:[]},
+
+{g:"exp",st:"impl",short:"節目の記録",name:"節目の記録（milestones）",path:"adest/memory/milestones.py",
+ role:"シーンの終わりに<em>重要な出来事だけを思い出として記録</em>。全部でなく節目を覚える。",feat:null,bugs:[]},
+{g:"exp",st:"impl",short:"観察の自動特化",name:"観察戦略の自動特化（ObserverProfile学習）",path:"observer_profile_learner.py",
+ role:"<em>画面のどこを見るべきかを使われ方から自動で学ぶ</em>。用途ごとに観察が特化し60秒周期で自動切替。",
+ feat:{id:"BUG-36",t:"観察が場面の変化に追従しない",sym:"ゲーム起動画面の小さな日付を読めず「文字が読み取れていません」と誤答。",cause:"読む領域が起動時に固定され、場面が変わっても観察側が古いまま乖離。",fix:"観察を単一の仕組みに一本化しプロファイル切替に自動追従。経験に観察がついていく設計へ。"},
+ bugs:[
+  {id:"BUG-23",sym:"起動直後、何もしていないのに画面の文字に反応。",fix:"<b>対処:</b> 起動後3秒の猶予でその間の観測を捨てる。"},
+  {id:"BUG-38",sym:"4K画面で本文を全部捨て読める文字を見落とす。",fix:"<b>対処:</b> 足切りを「縮小後」と誤認した検証ミスが真因。判定単位を確認し再調整。"},
+  {id:"BUG-39",sym:"意味のないUI断片に毎回反応。",fix:"<b>対処:</b> 最長単語の長さ等で意味のある画面テキストか構造判定。"}
+ ]},
+{g:"exp",st:"impl",short:"反応の重み学習",name:"反応からの重み学習（feedback_detector）",path:"adest/runtime/feedback_detector.py",
+ role:"「違うよ」は否定×2.0、「その通り」は肯定×1.5——<em>ユーザーの反応を報酬として学ぶ</em>。",feat:null,bugs:[]},
+{g:"exp",st:"desg",short:"経験の持ち運び",name:"経験の持ち運び（Experience Core）",path:"adest/business/experience_core.py",
+ role:"育った経験を<em>暗号化された束として持ち運び・売買できる</em>設計。経験は財産の実装形。",feat:null,bugs:[]},
+
+{g:"mem",st:"impl",short:"温度つき記憶",name:"温度つき記憶（TieredMemory）",path:"adest/runtime/tiered_memory.py",
+ role:"記憶を<em>HOT/WARM/COLDの3温度</em>で持ち、よく使うものは手元に。人の「よく思い出すことは早く出る」の構造化。",
+ feat:{id:"BUG-95",t:"過去に聞いた時刻を「今」と答える",sym:"「今なんじ？」に「18時37分です」（実際は20時14分）。",cause:"記憶の過去の時刻が、システム時計の現在時刻の注入に勝った。",fix:"記憶の時刻は過去の事実として扱い現在時刻の質問には使わない。記憶と現在を分離。"},
+ bugs:[]},
+{g:"mem",st:"impl",short:"信頼の階層0〜4",name:"信頼の階層0〜4",path:"conversation_buffer / working_memory / tier_storage",
+ role:"揮発→生ログ→検疫済み→<em>信念</em>→要約の5段階。<em>昇格は夢と検疫を通ったものだけ</em>。鵜呑みにせず確かめて信じる。",
+ feat:null,bugs:[{id:"BUG-91",sym:"信念と観測が全ターンに無差別注入され暴発。",fix:"<b>対処:</b> 意図に関連する記憶だけ注入する関連度ゲーティング。"}]},
+{g:"mem",st:"impl",short:"信念の構造化",name:"信念の構造化（BeliefGraph）",path:"adest/memory/belief_graph.py",
+ role:"教わったことを<em>鍵と値で持つ信念の層</em>。訂正は即反映、昇格はユーザー承認のみ。三層防御で自己修復。",
+ feat:{id:"BUG-71",t:"教えたことが応答に反映されない",sym:"教えて承認した内容が応答にまったく出てこない。学習しているのに使っていない。",cause:"承認済みの信念を応答に注入する経路が繋がっていなかった。",fix:"注入経路を配線し、教わった事実を思い出して使うことを公理に。覚えると使うを両方保証。"},
+ bugs:[{id:"BUG-74",sym:"信念の構造が不完全で訂正対象を特定できない。",fix:"<b>対処:</b> 5要素に完全構造化し三層防御を追加。"}]},
+{g:"mem",st:"impl",short:"夢（睡眠フェーズ）",name:"夢（Dreaming・睡眠フェーズ）",path:"adest/runtime/dreaming.py",
+ role:"30分の静寂で発火する<em>睡眠</em>。記憶から教訓を抽出、<em>検疫に落ちたものは悪夢として破棄</em>。寝て記憶を整理する役割。",feat:null,bugs:[]},
+{g:"mem",st:"impl",short:"訂正の即時反映",name:"訂正の即時反映（correction_extractor）",path:"correction_extractor + 小型判別モデル",
+ role:"「違うよ」を検出して<em>その場で記憶を直す</em>。明確な訂正は即時、曖昧なものだけ小型AIで判別。",feat:null,bugs:[]},
+
+{g:"base",st:"impl",short:"VRAM 8階層最適化",name:"ハードウェア自動最適化（VRAM 8階層）",path:"runtime/hardware_optimizer.py + model_downloader.py",
+ role:"起動時にGPUメモリを検出し<em>モデル・精度・文脈長・出力量を自動選択</em>。コードは一つで設定は身体が決める。",
+ feat:{id:"BUG-7 / 22",t:"全部載せたら全部遅くなる",sym:"GPUメモリ100%で毎秒3トークンに低下。対策後も起動1分で再発。",cause:"全層をGPUへの指定が17GB全体を仮想メモリに割り付け転送路が詰まった。再発は起動時の空きを信じすぎ——OS等が後から2.7GBを掴むのが実態だった。",fix:"ファイルサイズから層数を計算して制限。実測に基づく余裕枠を絶対量で確保し「瞬間の空き」でなく「実行時の現実」で予算を組む方針へ。"},
+ bugs:[
+  {id:"BUG-11",sym:"16GB機でぎりぎりのモデルを選び毎秒0.7トークンに。",fix:"<b>対処:</b> 一段軽いモデルへ自動格下げ＋余裕枠確保。"},
+  {id:"BUG-19",sym:"格下げで16GB機の賢さが必要以上に犠牲に。",fix:"<b>対処:</b> 部分GPU配置と圧縮キャッシュで賢いモデルを16GBに収める。"},
+  {id:"BUG-69",sym:"余裕枠3.5GBでも常時占有に足りずページング再発。",fix:"<b>対処:</b> 5GBに拡張。両分岐に適用し解決。"},
+  {id:"BUG-94",sym:"実測0を「取得失敗かも」と過大予約し文脈長が縮小。",fix:"<b>対処:</b> 実測0と取得失敗を区別する判定に修正。"},
+  {id:"BUG-8",sym:"監視機能の計算バグで出力上限が36に絞られる。",fix:"<b>対処:</b> 推定式の誤りを特定し修正。"},
+  {id:"BUG-20",sym:"設定値の型違いで起動時エラー。",fix:"<b>対処:</b> 正しい型取得に修正しフォールバックも追加。"}
+ ]},
+{g:"base",st:"impl",short:"画像認識の動的化",name:"画像認識の動的アクティベーション",path:"runtime/vision_caption.py",
+ role:"常駐すると本体とGPUを取り合う。だから<em>必要な発話のときだけ載せて使い終えたら降ろす</em>。身体の資源は有限。",
+ feat:{id:"BUG-31",t:"常駐させたら本体が1/15の速度に",sym:"画像認識を載せた途端、応答速度が毎秒30〜58から2〜8トークンに激減。",cause:"部品がGPU利用を無条件強制する仕様で、CPUに置いても一部がGPUに乗り物理メモリを奪い合った。",fix:"常駐をやめ、画像の発話のときだけロード→推論→アンロードする動的方式に転換。部品と戦わず構造で回避。"},
+ bugs:[
+  {id:"BUG-40",sym:"言い直しで2回同時に走り内部が壊れGPU張り付き。真っ黒画像に「緑のキャラ」と幻覚。",fix:"<b>対処:</b> 同時アクセスに耐えない設計と特定。処理を直列化するロックを新設。"},
+  {id:"BUG-32",sym:"アンロードのタイマー誤発火で生成中に解放され空の結果に。",fix:"<b>対処:</b> 初期値バグを修正し推論中はアンロードを抑止。"},
+  {id:"BUG-33",sym:"文字認識が0.15秒ごとに割り込み画像認識が30秒級に爆発。",fix:"<b>対処:</b> 文字認識をCPU固定にし0.26秒で安定。"},
+  {id:"BUG-68",sym:"連続する疑問形で連続起動しGPUを占有。",fix:"<b>対処:</b> 60秒のクールダウンを追加。"},
+  {id:"BUG-84",sym:"「2人がキスしている」を「人は映っていない」と誤解釈。",fix:"<b>対処:</b> 観察の構造化データを解釈と分離して注入する方針。"}
+ ]},
+{g:"base",st:"impl",short:"音声認識の動的配置",name:"音声認識の動的配置（Whisper）",path:"audio_input.py ほか",
+ role:"音声認識を<em>GPUとCPUのどちらに置くかを状況で切り替える</em>。本体がGPUを使う間はCPUへ逃がす調停。",
+ feat:{id:"BUG-21",t:"良かれと思った事前ロードが本体を殺す",sym:"起動時にGPUへ事前ロードしたら本体の速度が毎秒0.3トークンに崩壊。",cause:"音声認識が2.7GBを奪い合計が物理メモリを超えてページング。速くする施策が最悪の遅延を生んだ。",fix:"事前ロードを自動判定に変更。本体配置後に余裕を計算し足りなければCPUを自動選択。"},
+ bugs:[
+  {id:"BUG-4",sym:"自分の合成音声を拾って独り言のループに。",fix:"<b>対処:</b> 発話中フラグと連動して入力側を遮断。"},
+  {id:"BUG-17",sym:"初回の発話だけ認識が遅い。",fix:"<b>対処:</b> 起動時に並列スレッドで先に温めておく。"},
+  {id:"BUG-14",sym:"本体がGPUを独占し聞き取りまで10秒超。",fix:"<b>対処:</b> ページング解消＋CPUへ逃がす選択肢。"}
+ ]},
+{g:"base",st:"part",short:"OCR層",name:"文字認識の多段構成（OCR層）",path:"adest/runtime/vision/ocr_engines/",
+ role:"画面の文字を読む<em>目</em>。複数エンジンの切替に対応しCPU固定でGPUを本体に譲る。高性能機では精密な部隊を追加（骨組み済み）。",
+ feat:null,bugs:[
+  {id:"BUG-33",sym:"（再掲）GPU配置の文字認識が画像認識と衝突。",fix:"<b>対処:</b> CPU固定に変更。"},
+  {id:"BUG-38/39",sym:"（再掲）閾値の誤認で本文を捨てUI断片を拾う。",fix:"<b>対処:</b> 閾値再調整＋意味判定フィルタ新設。"}
+ ]},
+{g:"base",st:"impl",short:"話者識別・VAD",name:"話者識別＋声の関門（VAD/Echo）",path:"speaker_id.py / vad_gate.py",
+ role:"<em>声紋で誰が話したかを識別</em>し自分の合成音声は関門で除外。合言葉なしで反応できる土台。",feat:null,bugs:[]},
+{g:"base",st:"impl",short:"投機的デコード",name:"推論の高速化（投機的デコード）",path:"runtime/qwen3_backend.py",
+ role:"次の言葉を<em>先読みして推論を高速化</em>。専用の下書きモデルが要らない方式で構造の複雑さごと問題を消した。",
+ feat:null,bugs:[
+  {id:"BUG-24",sym:"先読み機能が全推論を巻き込んで失敗。",fix:"<b>対処:</b> 下書きモデル不要の方式へ転換。旧経路の性能問題も同時解消。"},
+  {id:"BUG-16",sym:"「機能が有効」のログと実態が矛盾。",fix:"<b>対処:</b> ログを事実に合わせて統一。"}
+ ]},
+{g:"base",st:"impl",short:"TTS接続",name:"発話の出口（TTS接続）",path:"tts.py",
+ role:"考えたことを<em>声にする出口</em>。外部の音声合成サーバと接続し、待ち時間を文の長さで動的調整。",
+ feat:{id:"BUG-34",t:"長く喋ろうとすると無音になる",sym:"長めの応答で音声が出ず無言に。一度起きると後続もしばらく黙る。",cause:"長文合成を10秒の待ち時間が待ちきれず失敗扱いになり、保護機構の30秒ミュートが暴発して連鎖。",fix:"待ち時間を文の長さから動的計算し、ミュートも30秒→5秒に短縮。長く考えるほど黙る構造を解消。"},
+ bugs:[{id:"BUG-3",sym:"接続失敗のログが連打される。",fix:"<b>対処:</b> 30秒のミュートと設定スイッチを追加。"}]},
+{g:"base",st:"none",short:"観測整合層（未着手）",name:"観測整合層（層2・未着手）",path:"adest/runtime/perception/（新規予定）",
+ role:"指示語を<em>画面の領域に紐づける</em>層と、音声と画面の<em>時刻をミリ秒で整合</em>する層。設計は確定済で実装は未着手——最大の穴として隠さず管理。",feat:null,bugs:[]}
+];
+
+/* ---------- radial build ---------- */
+const radial=document.getElementById("radial");
+const rsvg=document.getElementById("rsvg");
+const ORDER=["soul","pers","tho","exp","mem"];
+
+function buildRadial(){
+  radial.querySelectorAll(".rnode").forEach(n=>n.remove());
+  const W=radial.clientWidth, H=radial.clientHeight;
+  const cx=W*0.44, cy=H*0.5, R=Math.min(W*0.37,H*0.45);
+  const R_node=R*0.9, R_el=R*0.46, R_c=Math.max(60,R*0.21);
+  rsvg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+
+  const mains=ORDER.map(gk=>({gk,feats:FEATURES.filter(f=>f.g===gk)}));
+  const total=mains.reduce((s,m)=>s+m.feats.length,0);
+  const GAPDEG=7, avail=360-GAPDEG*mains.length;
+  let a=-90+GAPDEG/2; // start at top
+  let paths=""; let idx=0;
+  const pills=[];
+  mains.forEach(m=>{
+    const span=avail*(m.feats.length/total);
+    const midA=a+span/2;
+    // element badge
+    const ex=cx+Math.cos(rad(midA))*R_el, ey=cy+Math.sin(rad(midA))*R_el;
+    const g=GROUPS[m.gk];
+    const el=document.createElement("div");
+    el.className="rnode elbadge"; el.style.setProperty("--c",g.c);
+    el.innerHTML=`<div class="jp">${g.jp}</div><div class="en">${g.en}</div>`;
+    radial.appendChild(el);
+    const eb=el.getBoundingClientRect();
+    el.style.left=(ex-eb.width/2)+"px"; el.style.top=(ey-eb.height/2)+"px";
+    el.style.transitionDelay=(0.1+idx*0.02)+"s";
+    // arc for the sector at R_el ring
+    paths+=arc(cx,cy,R_el+R*0.11,a,a+span,g.hex,2,"animatable");
+    // center -> element spoke
+    paths+=curveP(cx+Math.cos(rad(midA))*R_c, cy+Math.sin(rad(midA))*R_c, ex-Math.cos(rad(midA))*eb.width*0.0, ey, "rgba(120,128,160,.5)",1.6);
+    // features (place boxes; spokes drawn after de-collision)
+    m.feats.forEach((f,k)=>{
+      const fa=a+span*((k+0.5)/m.feats.length);
+      const fx=cx+Math.cos(rad(fa))*R_node, fy=cy+Math.sin(rad(fa))*R_node;
+      const i=FEATURES.indexOf(f);
+      const bn=(f.bugs?f.bugs.length:0)+(f.feat?1:0);
+      const b=document.createElement("button");
+      b.className="rnode fn"; b.style.setProperty("--c",g.c);
+      b.dataset.i=i; b.setAttribute("aria-haspopup","dialog");
+      b.innerHTML=`<span class="st ${f.st}"></span><span class="nm">${f.short}</span><span class="bc">${bn>0?bn:STSHORT[f.st]}</span>`;
+      radial.appendChild(b);
+      const bb=b.getBoundingClientRect();
+      const cos=Math.cos(rad(fa)), sin=Math.sin(rad(fa));
+      let bx,by;
+      if(cos>0.25){ bx=fx; by=fy-bb.height/2; }
+      else if(cos<-0.25){ bx=fx-bb.width; by=fy-bb.height/2; }
+      else { bx=fx-bb.width/2; by=sin>0? fy : fy-bb.height; }
+      b.style.transitionDelay=(0.2+idx*0.03)+"s";
+      pills.push({b,gk:m.gk,cos,sin,fx,fy,w:bb.width,h:bb.height,x:bx,y:by});
+      idx++;
+    });
+    a+=span+GAPDEG;
+  });
+
+  // ---- light de-collision: separate overlapping pills horizontally, keep vertical/ring intact ----
+  const M=8;
+  for(let it=0;it<50;it++){
+    let moved=false;
+    for(let i=0;i<pills.length;i++)for(let j=i+1;j<pills.length;j++){
+      const p=pills[i],q=pills[j];
+      const ox=Math.min(p.x+p.w,q.x+q.w)-Math.max(p.x,q.x);
+      const oy=Math.min(p.y+p.h,q.y+q.h)-Math.max(p.y,q.y);
+      if(ox>-M&&oy>-M){
+        const push=(Math.min(ox,oy)+M)/2+0.5;
+        // push apart along whichever axis overlaps less
+        if(ox<=oy){ const dir=(p.x<=q.x)?-1:1; p.x+=dir*push; q.x-=dir*push; }
+        else { const dir=(p.y<=q.y)?-1:1; p.y+=dir*push; q.y-=dir*push; }
+        moved=true;
+      }
+    }
+    if(!moved) break;
+  }
+  // clamp inside area, then place + draw spokes to final edges
+  pills.forEach(p=>{
+    p.x=Math.max(6,Math.min(W-p.w-6,p.x));
+    p.y=Math.max(6,Math.min(H-p.h-6,p.y));
+    p.b.style.left=p.x+"px"; p.b.style.top=p.y+"px";
+    const sx=cx+p.cos*(R_el+R*0.11), sy=cy+p.sin*(R_el+R*0.11);
+    const tx=p.cos>0.25? p.x : (p.cos<-0.25? p.x+p.w : p.x+p.w/2);
+    const ty=(p.cos>0.25||p.cos<-0.25)? p.y+p.h/2 : (p.sin>0? p.y : p.y+p.h);
+    paths+=curveRad(sx,sy,tx,ty,cx,cy,GROUPS[p.gk].hex,1.4);
+  });
+
+  // center node
+  const c=document.createElement("div");
+  c.className="rnode center";
+  c.style.cssText=`left:${cx-R_c}px;top:${cy-R_c}px;width:${R_c*2}px;height:${R_c*2}px`;
+  c.innerHTML=`<div class="nm">Adest</div><div class="en">5 ELEMENTS</div>`;
+  radial.appendChild(c);
+  rsvg.innerHTML=paths;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>radial.classList.add("on")));
+}
+function rad(d){return d*Math.PI/180}
+function arc(cx,cy,r,a1,a2,stroke,w,cls){
+  const large=(a2-a1)>180?1:0;
+  const x1=cx+Math.cos(rad(a1))*r, y1=cy+Math.sin(rad(a1))*r;
+  const x2=cx+Math.cos(rad(a2))*r, y2=cy+Math.sin(rad(a2))*r;
+  return `<path class="${cls||''}" pathLength="1" d="M${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2}" fill="none" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round" opacity="0.55"/>`;
+}
+function curveP(x1,y1,x2,y2,stroke,w){
+  const mx=(x1+x2)/2, my=(y1+y2)/2;
+  return `<path class="animatable" pathLength="1" d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" fill="none" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round" opacity="0.7"/>`;
+}
+function curveRad(x1,y1,x2,y2,cx,cy,stroke,w){
+  // control point pushed outward along the radial direction for a gentle fan curve
+  const mx=(x1+x2)/2, my=(y1+y2)/2;
+  const dx=mx-cx, dy=my-cy, len=Math.hypot(dx,dy)||1;
+  const px=mx+dx/len*18, py=my+dy/len*18;
+  return `<path class="animatable" pathLength="1" d="M${x1},${y1} Q${px},${py} ${x2},${y2}" fill="none" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round" opacity="0.65"/>`;
+}
+
+/* ---------- base band ---------- */
+const baseChips=document.getElementById("baseChips");
+FEATURES.filter(f=>f.g==="base").forEach(f=>{
+  const i=FEATURES.indexOf(f);
+  const bn=(f.bugs?f.bugs.length:0)+(f.feat?1:0);
+  const b=document.createElement("button");
+  b.className="fnb"; b.dataset.i=i; b.setAttribute("aria-haspopup","dialog");
+  b.innerHTML=`<span class="nm">${f.short}</span><span class="meta"><span class="st ${f.st}"></span><span class="bc">${bn>0?`LOG ${bn}`:STSHORT[f.st]}</span></span>`;
+  baseChips.appendChild(b);
+});
+requestAnimationFrame(()=>requestAnimationFrame(()=>document.getElementById("basePlate").parentElement.querySelector(".plate").classList.add("on")));
+document.getElementById("basePlate").classList.add("reveal");
+setTimeout(()=>document.getElementById("basePlate").classList.add("on"),350);
+
+buildRadial();
+let rT; window.addEventListener("resize",()=>{clearTimeout(rT);rT=setTimeout(()=>{radial.classList.remove("on");buildRadial();},150)});
+
+/* ---------- drawer ---------- */
+/* 真因データ (03_BUGS.md より要約) — リストのバグを昇格させたときに使う */
+const CAUSES={
+ "BUG-2":"Qwen3が思考プロセスをそのまま出力する仕様だった。",
+ "BUG-3":"TTS接続の失敗時にログを抑制する仕組みがなかった。",
+ "BUG-4":"Whisperが自分の合成音声(TTS)を入力として拾っていた。",
+ "BUG-6":"プロンプト形式が素の補完向けで、対話テンプレートと不一致だった。",
+ "BUG-8":"監視の推定式が特殊値(-1)のとき0に落ち、出力上限を誤って絞った。",
+ "BUG-9":"繰り返しへのペナルティ(1.10)が弱すぎた。",
+ "BUG-10":"3視点×推論で各10秒、合計30秒＋TTS待ちが直列で積み上がった。",
+ "BUG-11":"pynvmlの空き容量は瞬時値で、他プロセスとの取り合いでページアウトした。",
+ "BUG-12":"思考方針をユーザーブロック内に挿入し、発話の一部と誤解釈された。",
+ "BUG-14":"WhisperがGPU固定でLLMとVRAMを取り合っていた。",
+ "BUG-16":"起動ログが実態(未配線)と食い違い「有効」と表示していた。",
+ "BUG-17":"Whisperの遅延ロードが初回発話時に走り、一時的にVRAMを圧迫した。",
+ "BUG-19":"ページアウト回避のため賢いモデルを諦めて格下げしていた。",
+ "BUG-20":"型の要求(int)に対し文字列を渡していた。",
+ "BUG-23":"起動直後もOCRが画面文字を拾って反応する設計だった(UX上の違和感)。",
+ "BUG-24":"別Llamaインスタンス経路が原因で、形状不一致で全推論が失敗した。",
+ "BUG-26":"Vision未実装で観測欄が空のとき、想像で画面内容を補っていた。",
+ "BUG-30":"観測欄が不足したとき、ユーザー発話を画面文字と誤認して埋めた。",
+ "BUG-32":"最終使用時刻の初期値が0で、ロード直後に誤ってアンロードした。",
+ "BUG-33":"文字認識(GPU)が0.15秒周期で画像認識のCUDAを中断していた。",
+ "BUG-35":"全視点が上限まで使い切り、文末記号なしの生文がそのまま発話された。",
+ "BUG-38":"閾値を「縮小後のpx」と誤認し、4Kの本文を全部足切りした。",
+ "BUG-39":"本文を捨てた結果、意味のないUI断片だけが観測欄に残った。",
+ "BUG-38/39":"閾値を「縮小後のpx」と誤認し本文を足切り、UI断片だけが残った。",
+ "BUG-40":"言い直しで画像認識が2回並列に走り、スレッド非安全な内部状態が壊れた。",
+ "BUG-57":"OCRの生テキストがユーザー発話の枠に届く別経路があった。",
+ "BUG-59":"口調の接地が抽象的で「品位ある＝古風敬語」と解釈する余地が残った。",
+ "BUG-61":"会話履歴の慣性で、新しい観測を無視して直前の話題を続けた。",
+ "BUG-63":"語尾の変化を促す誘導がなく、同じ語尾が連続した。",
+ "BUG-64":"接地が長文化し、AIの注意が分散して核心の禁止が埋もれた。",
+ "BUG-68":"Vision自動発火にクールダウンがなく、連続する疑問形で連続起動した。",
+ "BUG-69":"16GBの余裕枠が他プロセスの常時占有(3-4GB)に足りずページングした。",
+ "BUG-70":"観察と解釈が混ざり、AIが意図に合わせて観察結果を歪めた。",
+ "BUG-72":"質問返しの連続発動を抑制する仕組みがなかった。",
+ "BUG-74":"信念の構造が不完全で、訂正の対象を特定できなかった。",
+ "BUG-77":"起動時のウォームアップ自体が容量超過でスキップされた。",
+ "BUG-78":"短文が日本語判定の基準に届かず失格した。",
+ "BUG-79":"文法エラーの良い例・悪い例が公理で言語化されていなかった。",
+ "BUG-81":"実装予定が明記された未実装由来の症状で、バグではなかった。",
+ "BUG-83":"履歴の切り詰めで直前ターンの文脈が失われる懸念があった。",
+ "BUG-84":"観察の構造化データと解釈が混ざって注入されていた。",
+ "BUG-89":"別作業環境の関数がマージされず、実ファイルに存在しなかった。",
+ "BUG-91":"信念と観測が意図に関係なく全ターンに無差別注入されていた。",
+ "BUG-94":"実測0を「取得失敗かも」と誤解釈し、過大予約で文脈長を縮めた。"
+};
+/* 昇格時のカード見出し (無ければ症状を要約) */
+const BUGTITLE={
+ "BUG-2":"思考プロセスの漏れ出し","BUG-3":"接続失敗ログの連打","BUG-4":"自分の声を拾うループ",
+ "BUG-6":"候補が形式違反で全滅","BUG-8":"出力上限の誤縮小","BUG-9":"言い回しの繰り返し",
+ "BUG-10":"3視点で約1分の遅延","BUG-11":"ぎりぎりモデルのページアウト","BUG-12":"不自然な敬語",
+ "BUG-14":"聞き取りが10秒待ち","BUG-16":"ログと実態の矛盾","BUG-17":"初回発話の遅延",
+ "BUG-19":"賢いモデルの過剰な犠牲","BUG-20":"型違いで起動エラー","BUG-23":"起動直後の過剰反応",
+ "BUG-24":"先読みで全推論失敗","BUG-26":"画面内容の捏造","BUG-30":"質問文のオウム返し",
+ "BUG-32":"生成中のモデル解放","BUG-33":"文字認識との競合","BUG-35":"文の途中で切れる発話",
+ "BUG-38":"本文の取りこぼし","BUG-39":"UI断片への反応","BUG-38/39":"本文取りこぼしとUI断片反応",
+ "BUG-40":"並列要求で内部が破損","BUG-57":"断片の物語化","BUG-59":"古風なキャラ語尾",
+ "BUG-61":"同じ話題の反復","BUG-63":"語尾の単調","BUG-64":"接地の希薄化","BUG-68":"Vision連続起動",
+ "BUG-69":"起動直後の速度低下","BUG-70":"観察結果の歪曲","BUG-72":"質問返しのループ",
+ "BUG-74":"訂正対象の特定不能","BUG-77":"ウォームアップのスキップ","BUG-78":"短文の応答不能",
+ "BUG-79":"文法エラーの反復","BUG-81":"未実装由来の症状","BUG-83":"直前文脈の喪失",
+ "BUG-84":"観察結果の誤解釈","BUG-89":"検証関数の不在","BUG-91":"無差別注入の暴発","BUG-94":"文脈長の不当な縮小"
+};
+function stripFix(s){ return (s||"").replace(/^<b>[^<]*<\/b>\s*/,""); }
+function bugPool(f){
+  const pool=[];
+  if(f.feat) pool.push({id:f.feat.id,t:f.feat.t,sym:f.feat.sym,cause:f.feat.cause,fix:stripFix(f.feat.fix)});
+  (f.bugs||[]).forEach(b=>pool.push({id:b.id,t:BUGTITLE[b.id]||b.sym,sym:b.sym,cause:CAUSES[b.id]||"（真因は記録を参照）",fix:stripFix(b.fix)}));
+  return pool;
+}
+function featCard(b){
+  return `<div class="feat"><div class="id">${b.id}</div><div class="t">${b.t}</div>
+    <div class="row sym"><span class="k">症状</span><span>${b.sym}</span></div>
+    <div class="row cause"><span class="k">真因</span><span>${b.cause}</span></div>
+    <div class="row fix"><span class="k">対処</span><span>${b.fix}</span></div></div>`;
+}
+function bugItemHTML(b,poolIdx){
+  return `<div class="bitem" data-k="${poolIdx}">
+    <div class="top2"><span class="id">${b.id}</span><span class="sym">${b.sym}</span></div>
+    <div class="fix"><b>対処:</b> ${b.fix}</div></div>`;
+}
+function renderBugs(pool){
+  const total=pool.length;
+  const feat=`<div class="d-sec"><h3>FEATURED — 選択中の実戦記録</h3><div id="featSlot">${featCard(pool[curFeat])}</div></div>`;
+  const list=`<div class="d-sec"><h3>BATTLE LOG — この機能に対応するバグ</h3>
+    <div class="blist-hint">クリックで上に入れ替え ／ 全${total}件</div>
+    <div class="blist" id="blist">`+curOrder.map(pi=>bugItemHTML(pool[pi],pi)).join("")+`</div></div>`;
+  return feat+list;
+}
+
+const drawer=document.getElementById("drawer"), scrim=document.getElementById("scrim");
+const dGrp=document.getElementById("dGrp"), dTitle=document.getElementById("d-title"),
+      dPath=document.getElementById("dPath"), dSt=document.getElementById("dSt"),
+      dBody=document.getElementById("dBody"), dHead=document.getElementById("dHead");
+let lastFocus=null, curPool=null, curFeat=0, curOrder=[];
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button[data-i]"); if(!b) return;
+  lastFocus=b; openD(FEATURES[+b.dataset.i]);
+});
+function openD(f){
+  const g=GROUPS[f.g];
+  dHead.style.setProperty("--c",g.c); dGrp.style.color=g.c;
+  dGrp.textContent=`${g.jp} ／ ${g.en}`;
+  dTitle.textContent=f.name; dPath.textContent=f.path;
+  dSt.innerHTML=`<span class="st ${f.st}" style="display:inline-block"></span>${ST[f.st]}`;
+  let html=`<div class="d-sec"><h3>PHILOSOPHY — 人として設計したときの位置</h3><p class="role">${f.role}</p></div>`;
+  curPool=bugPool(f); curFeat=0;
+  curOrder=curPool.map((_,i)=>i).filter(i=>i!==curFeat);   // 先頭を代表に、残りをリスト順に
+  if(curPool.length){ html+=renderBugs(curPool); }
+  else{ html+=`<div class="d-sec"><h3>BATTLE LOG</h3><p class="none-note">この機能に紐づく大きな不具合の記録はまだない（または設計段階）。壊れていないことも、記録が語る事実のひとつ。</p></div>`; }
+  dBody.innerHTML=html; dBody.scrollTop=0;
+  drawer.classList.add("on"); scrim.classList.add("on");
+  document.getElementById("dClose").focus();
+}
+// クリックで入れ替え：選んだバグが上へ、今のピックアップが選んだバグの居た場所へ降りる
+dBody.addEventListener("click",e=>{
+  const item=e.target.closest(".bitem[data-k]"); if(!item||!curPool) return;
+  const pk=+item.dataset.k; if(pk===curFeat) return;
+  const slot=document.getElementById("featSlot"); if(!slot) return;
+  const outCard=slot.querySelector(".feat");
+  const picked=curPool[pk], oldFeat=curPool[curFeat], oldFeatIdx=curFeat;
+  const reduce=window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  let newH=null;
+
+  const commit=()=>{
+    // curOrder 内の pk の位置を、旧代表 oldFeatIdx に置き換える（選んだバグはリストから消え、旧代表がその席に座る）
+    const pos=curOrder.indexOf(pk);
+    if(pos>=0) curOrder[pos]=oldFeatIdx;
+    curFeat=pk;
+    slot.innerHTML=featCard(picked);
+    const bl=document.getElementById("blist");
+    if(bl) bl.innerHTML=curOrder.map(pi=>bugItemHTML(curPool[pi],pi)).join("");
+    slot.querySelector(".feat")?.classList.remove("ghost");
+    // 実測した新高さのまま維持（height="" による再計算のズレを避ける）。未計測時は自然高さ。
+    slot.style.height = (newH!=null) ? newH+"px" : "";
+  };
+  if(reduce){ commit(); return; }
+
+  const itemRect=item.getBoundingClientRect();
+  const slotRect=(outCard||slot).getBoundingClientRect();
+  const oldH=slotRect.height;
+
+  // FEATURED を ghost 化
+  item.classList.add("ghost");
+  if(outCard) outCard.classList.add("ghost");
+
+  // === リストのデータを先に確定＆再描画（着地先を固定する） ===
+  const pos=curOrder.indexOf(pk);
+  if(pos>=0) curOrder[pos]=oldFeatIdx;   // 選んだバグの席に旧代表が座る
+  curFeat=pk;
+  const bl=document.getElementById("blist");
+  if(bl) bl.innerHTML=curOrder.map(pi=>bugItemHTML(curPool[pi],pi)).join("");
+  const destItem=bl && Array.from(bl.querySelectorAll(".bitem")).find(el=>el.querySelector(".id")?.textContent===oldFeat.id);
+
+  // 新FEATUREDの「本当の落ち着き高さ」を、実スロットに一瞬入れて実測（body直下のprobeでは行間が違いズレる）
+  const prevTrans=slot.style.transition; slot.style.transition="none";
+  const prevHTML=slot.innerHTML;
+  slot.style.height="";
+  slot.innerHTML=featCard(picked);
+  newH=slot.getBoundingClientRect().height;   // 着地後と同一条件の自然高さ
+  // 着地時のリスト位置もこの状態で実測（FEATURED が newH に伸びた状態）
+  let destRect=itemRect;
+  if(destItem){ destItem.classList.add("ghost"); destRect=destItem.getBoundingClientRect(); }
+  // 元の見た目(空/旧カード)に戻し、oldH から newH へ滑らかに遷移
+  slot.innerHTML=prevHTML;
+  slot.querySelector(".feat")?.classList.add("ghost");
+  slot.style.height=oldH+"px";
+  void slot.offsetWidth;
+  slot.style.transition=prevTrans;
+  requestAnimationFrame(()=>{ slot.style.height=newH+"px"; });
+
+  // 上りカード＝本物のFEATUREDカードそのものを飛ばす
+  const up=document.createElement("div");
+  up.className="flyer up"; up.style.width=slotRect.width+"px";
+  up.style.transformOrigin="top left";
+  up.style.left=itemRect.left+"px"; up.style.top=itemRect.top+"px";
+  up.innerHTML=featCard(picked);
+  document.body.appendChild(up);
+  const upDX=slotRect.left-itemRect.left, upDY=slotRect.top-itemRect.top;
+  const upA=up.animate([
+    {transform:"translate(0px,0px) scale(.5)",opacity:.6,offset:0},
+    {transform:`translate(${upDX*0.5}px,${upDY*0.5}px) scale(.5)`,opacity:.95,offset:.5},
+    {transform:`translate(${upDX}px,${upDY}px) scale(1.04)`,opacity:1,offset:.85},
+    {transform:`translate(${upDX}px,${upDY}px) scale(1)`,opacity:1,offset:1}
+  ],{duration:560,easing:"cubic-bezier(.34,1.2,.5,1)",fill:"forwards"});
+
+  // 下りカード：旧代表 → 確定済みの実着地先 destRect（ズレない）
+  const down=document.createElement("div");
+  down.className="flyer down"; down.style.width=destRect.width+"px";
+  down.style.transformOrigin="top left";
+  down.style.left=slotRect.left+"px"; down.style.top=slotRect.top+"px";
+  down.innerHTML=`<div class="top2"><span class="id">${oldFeat.id}</span><span class="sym">${oldFeat.sym}</span></div>
+    <div class="fix"><b>対処:</b> ${oldFeat.fix}</div>`;
+  document.body.appendChild(down);
+  const dnDX=destRect.left-slotRect.left, dnDY=destRect.top-slotRect.top;
+  const dnA=down.animate([
+    {transform:"translate(0px,0px) scale(1)",opacity:1,offset:0},
+    {transform:`translate(${dnDX*0.5}px,${dnDY*0.5}px) scale(.6)`,opacity:.95,offset:.5},
+    {transform:`translate(${dnDX}px,${dnDY}px) scale(1.03)`,opacity:1,offset:.85},
+    {transform:`translate(${dnDX}px,${dnDY}px) scale(1)`,opacity:1,offset:1}
+  ],{duration:560,easing:"cubic-bezier(.34,1.2,.5,1)",fill:"forwards"});
+
+  let done=false;
+  const finish=()=>{
+    if(done) return; done=true;
+    // 上りカードをFEATUREDスロットの中身に採用（差し替えゼロ）
+    up.getAnimations().forEach(a=>a.cancel());
+    const inner=up.firstElementChild;
+    up.remove();
+    slot.innerHTML="";
+    slot.appendChild(inner);
+    // 高さ固定を解除して自然な高さに戻す（overflow による下端の切れを防ぐ）
+    slot.style.height="";
+    // 下りカードの着地先(実項目)を表示し、飛翔カードは即消し（同座標なので継ぎ目なし）
+    if(destItem) destItem.classList.remove("ghost");
+    down.remove();
+  };
+  upA.onfinish=finish;
+  setTimeout(finish, 600);
+});
+function closeD(){ drawer.classList.remove("on"); scrim.classList.remove("on"); if(lastFocus) lastFocus.focus(); }
+document.getElementById("dClose").addEventListener("click",closeD);
+scrim.addEventListener("click",closeD);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeD(); });
+</script>
+</body>
+</html>
